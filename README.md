@@ -3,6 +3,9 @@
 
 Backend service for searching and explaining mental health research with transparency-first filters.
 
+pip install -r requirements.txt -c constraints.txt
+
+
 ## Features
 - Postgres full-text search (FTS) + optional pgvector embeddings
 - Compliance / replication / demographics flags
