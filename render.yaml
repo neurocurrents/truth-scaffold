@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: truth-scaffold-api
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PG_DSN
+        sync: false  # set secret in Render dashboard
+    autoDeploy: true
+    healthCheckPath: /search
+
+  - type: cron
+    name: truth-scaffold-nightly-ingest
+    schedule: "0 6 * * *"  # every day at 6:00 UTC
+    env: docker
+    dockerfilePath: ./Dockerfile
+    command: ["python", "scripts/ingest_csv.py", "--csv", "data/records.csv"]
+    envVars:
+      - key: PG_DSN
+        sync: false
