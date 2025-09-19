@@ -14,3 +14,8 @@ def search(q: str = "", domain: str | None = None, compliance: str | None = None
 def root():
     return {"message": "Truth Scaffold API is running. Try /search or /docs"}
 
+
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
+
