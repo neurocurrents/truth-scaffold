@@ -1,22 +1,31 @@
+# ---- base ----
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PORT=8000
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y build-essential libpq-dev curl && rm -rf /var/lib/apt/lists/*
+# (optional) build tools; usually not needed with psycopg2-binary wheels,
+# but harmless if a lib needs compiling
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+  && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt constraints.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt
+# Install deps first (better cache)
+COPY requirements.txt .
+RUN python -m pip install --upgrade pip && pip install -r requirements.txt
 
-
+# Copy app code
 COPY app ./app
-COPY sql ./sql
 COPY scripts ./scripts
+COPY sanity_check.py ./sanity_check.py
 
-EXPOSE 10000
+# (Render ignores EXPOSE; still fine locally)
+EXPOSE 8000
 
-CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "10000"]
-
-
+# Production server (no --reload)
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
