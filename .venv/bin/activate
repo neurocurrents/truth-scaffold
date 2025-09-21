@@ -68,12 +68,3 @@ fi
 # Call hash to forget past commands. Without forgetting
 # past commands the $PATH changes we made may not be respected
 hash -r 2> /dev/null
-# --- Auto-load project .env on venv activate ---
-ENV_FILE="$VIRTUAL_ENV/../.env"
-if [ -f "$ENV_FILE" ]; then
-  # Export every var defined in .env (PG_DSN, PG_URL, etc.)
-  set -a
-  . "$ENV_FILE"
-  set +a
-fi
-# -----------------------------------------------

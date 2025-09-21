@@ -6,4 +6,4 @@ SQLAlchemy==2.0.34
 pandas==2.2.2
 pyarrow==17.0.0
 pgvector==0.3.3
-pandas>=2.0.0
+

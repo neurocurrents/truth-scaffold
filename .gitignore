@@ -1,1 +1,6 @@
 .env
+.env
+.venv/
+__pycache__/
+records.csv
+data/*.csv

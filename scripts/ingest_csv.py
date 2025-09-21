@@ -1,59 +1,49 @@
-#!/usr/bin/env python
-import argparse, os, sys
-from pathlib import Path
+import os
 import pandas as pd
+import numpy as np
 from sqlalchemy import create_engine, text
+from dotenv import load_dotenv
 
-def main():
-    ap = argparse.ArgumentParser(description="CSV → Postgres ingest")
-    ap.add_argument("--csv", required=True, help="Path to CSV file")
-    ap.add_argument("--table", required=True, help="Destination table (schema.table or table)")
-    ap.add_argument("--truncate", action="store_true", help="TRUNCATE destination before ingest")
-    ap.add_argument("--pg-dsn", default=os.getenv("PG_DSN"), help="Postgres DSN (or set PG_DSN)")
-    ap.add_argument("--chunksize", type=int, default=5000, help="Bulk insert chunk size")
-    args = ap.parse_args()
+load_dotenv()
+dsn = os.environ.get("PG_DSN")
+if not dsn:
+    raise SystemExit("PG_DSN is not set. Put it in .env")
 
-    if not args.pg_dsn:
-        sys.exit("PG_DSN is not set")
+csv_path = os.getenv("CSV_PATH", "records.csv")  # default repo-root file
+if not os.path.exists(csv_path):
+    raise SystemExit(f"Missing {csv_path}. Place your cleaned CSV there or set CSV_PATH.")
 
-    csv_path = Path(args.csv)
-    if not csv_path.exists():
-        sys.exit(f"CSV not found: {csv_path}")
+print(f"Loading {csv_path} ...")
+df = pd.read_csv(csv_path)
 
-    # Load CSV
-    df = pd.read_csv(csv_path, low_memory=False)
+# Optional: basic dtype harmonization
+if "pmid" in df.columns:
+    df["pmid"] = pd.to_numeric(df["pmid"], errors="coerce").astype("Int64")
 
-    # Ensure compliance is Int64 (0/1/null)
-    if "compliance" in df.columns:
-        df["compliance"] = pd.to_numeric(df["compliance"], errors="coerce").astype("Int64")
+engine = create_engine(dsn, pool_pre_ping=True, future=True)
 
-    eng = create_engine(args.pg_dsn, pool_pre_ping=True, future=True)
-    schema, table = (args.table.split(".",1)+[None])[:2] if "." in args.table else (None, args.table)
+with engine.begin() as conn:
+    # ensure the table exists
+    conn.execute(text("SELECT 1 FROM records LIMIT 1"))
+    # stage and upsert
+    conn.execute(text("CREATE TEMP TABLE _stage (LIKE records INCLUDING ALL) ON COMMIT DROP;"))
+    df.to_sql("_stage", conn.connection, if_exists="append", index=False)
+    conn.execute(text("""        INSERT INTO records AS r
+        SELECT * FROM _stage
+        ON CONFLICT (pmid) DO UPDATE SET
+          title=EXCLUDED.title,
+          abstract=EXCLUDED.abstract,
+          journal=EXCLUDED.journal,
+          year=EXCLUDED.year,
+          _hit_kw=EXCLUDED._hit_kw,
+          demo_present=EXCLUDED.demo_present,
+          outcome_present=EXCLUDED.outcome_present,
+          is_1=EXCLUDED.is_1,
+          decade=EXCLUDED.decade,
+          pub_year_final=EXCLUDED.pub_year_final,
+          is_paywalled=EXCLUDED.is_paywalled,
+          years_since_pub=EXCLUDED.years_since_pub,
+          is_pharma=EXCLUDED.is_pharma;
+    """))
 
-    with eng.begin() as c:
-        if args.truncate:
-            c.execute(text(f"TRUNCATE TABLE {args.table};"))
-
-    df.to_sql(
-        name=table if schema is None else table,
-        con=eng,
-        schema=None if schema is None else schema,
-        if_exists="append",
-        index=False,
-        chunksize=args.chunksize,
-        method="multi"
-    )
-
-    with eng.begin() as c:
-        total = c.execute(text(f"SELECT COUNT(*) FROM {args.table}")).scalar_one()
-        comp = c.execute(text(f"""
-            SELECT compliance, COUNT(*) 
-            FROM {args.table}
-            GROUP BY compliance ORDER BY compliance
-        """)).all()
-    print(f"[DONE] wrote {len(df):,} rows → {args.table}")
-    print(f"[INFO] total rows in table: {total}")
-    print(f"[INFO] compliance breakdown: {dict(comp)}")
-
-if __name__ == "__main__":
-    main()
+print("Ingest complete ✅")
