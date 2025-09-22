@@ -1,21 +1,12 @@
 services:
   - type: web
-    name: truth-scaffold-api
-    env: docker
-    plan: starter
-    dockerfilePath: ./Dockerfile
-    envVars:
-      - key: PG_DSN
-        sync: false  # set secret in Render dashboard
-    autoDeploy: true
-    healthCheckPath: /search
-
-  - type: cron
-    name: truth-scaffold-nightly-ingest
-    schedule: "0 6 * * *"  # every day at 6:00 UTC
-    env: docker
-    dockerfilePath: ./Dockerfile
-    command: ["python", "scripts/ingest_csv.py", "--csv", "data/records.csv"]
+    name: truth-scaffold-web
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT server:app
     envVars:
       - key: PG_DSN
         sync: false
+      - key: PYTHON_VERSION
+        value: 3.12.5
+
