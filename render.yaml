@@ -3,10 +3,9 @@ services:
     name: truth-scaffold-web
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT server:app
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT app.main:app
     envVars:
       - key: PG_DSN
         sync: false
       - key: PYTHON_VERSION
         value: 3.12.5
-
