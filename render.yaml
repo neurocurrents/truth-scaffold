@@ -4,12 +4,7 @@ services:
     env: python
     buildCommand: |
       python -m pip install --upgrade pip setuptools wheel
-      pip install -v --no-cache-dir fastapi==0.112.2
-      pip install -v --no-cache-dir uvicorn==0.30.6
-      pip install -v --no-cache-dir gunicorn==21.2.0
-      pip install -v --no-cache-dir SQLAlchemy==2.0.32
-      pip install -v --no-cache-dir psycopg2-binary==2.9.9
-      pip install -v --no-cache-dir python-dotenv==1.0.1
+      pip install --no-cache-dir -r requirements-web.txt
     startCommand: gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT app.main:app
     envVars:
       - key: PYTHON_VERSION

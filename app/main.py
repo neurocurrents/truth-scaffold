@@ -10,19 +10,18 @@ from sqlalchemy import create_engine, text
 
 # ----------------- helpers -----------------
 def _load_dsn() -> str:
-    """
-    Load the Postgres DSN from PG_DSN or DATABASE_URL.
-    Accepts 'postgres://' and upgrades it to 'postgresql+psycopg2://'.
-    """
-    load_dotenv()  # harmless on Render; useful locally
+    load_dotenv()
     dsn = os.getenv("PG_DSN") or os.getenv("DATABASE_URL")
     if not dsn:
-        raise RuntimeError(
-            "Database DSN missing. Set PG_DSN (or DATABASE_URL) in the environment."
-        )
+        raise RuntimeError("Database DSN missing.")
     if dsn.startswith("postgres://"):
-        dsn = "postgresql+psycopg2://" + dsn[len("postgres://") :]
+        dsn = "postgresql+psycopg://" + dsn[len("postgres://"):]
+    elif dsn.startswith("postgresql://") and "+psycopg" not in dsn and "+psycopg2" not in dsn:
+        dsn = "postgresql+psycopg://" + dsn[len("postgresql://"):]
+    dsn = dsn.replace("postgresql+psycopg2://", "postgresql+psycopg://")
     return dsn
+
+
 
 
 @asynccontextmanager
